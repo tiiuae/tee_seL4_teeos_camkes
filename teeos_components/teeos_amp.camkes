@@ -1,0 +1,15 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+component Client {
+    control;
+}
+
+assembly {
+    composition {
+        component Client client;
+    }
+}
