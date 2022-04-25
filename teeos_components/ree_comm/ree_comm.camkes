@@ -1,0 +1,53 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+
+import <std_connector.camkes>;
+
+#include <linux/dt-bindings/mailbox/miv-ihc.h>
+#include "ree_comm_defs.h"
+
+component tty_device {
+    hardware;
+
+    dataport Buf(RPMSG_BUFFER_LEN) rpmsg_buf;
+    emits Interrupt irq;
+}
+
+component crashlog_device {
+    hardware;
+
+    dataport Buf(SEL4_CRASHLOG_LEN) crashlog_buf;
+}
+
+component ree_comm {
+    control;
+
+    dataport Buf(RPMSG_BUFFER_LEN)      rpmsg_buf;
+    consumes Interrupt                  tty_irq;
+
+    dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
+
+    composition {
+        component tty_device                tty_dev;
+
+        connection seL4HardwareMMIO         tty_mmio(from rpmsg_buf, to tty_dev.rpmsg_buf);
+        connection seL4HardwareInterrupt    tty_irq(from tty_dev.irq, to tty_irq);
+
+        component crashlog_device           crashlog_dev;
+        connection seL4HardwareMMIO         crashlog_mmio(from crashlog_buf, to crashlog_dev.crashlog_buf);
+
+    }
+
+    configuration {
+        tty_dev.rpmsg_buf_paddr = RPMSG_BUFFER_PADDR;
+        tty_dev.rpmsg_buf_size = RPMSG_BUFFER_LEN;
+        tty_dev.irq_irq_number = IHC_HART4_INT;
+
+        crashlog_dev.crashlog_buf_paddr = SEL4_CRASHLOG_PADDR;
+        crashlog_dev.crashlog_buf_size = SEL4_CRASHLOG_LEN;
+    }
+}

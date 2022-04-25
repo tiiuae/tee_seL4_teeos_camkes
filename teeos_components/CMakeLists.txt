@@ -4,7 +4,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-DeclareCAmkESComponent(Client SOURCES client.c)
+find_package(sel4_teeos REQUIRED)
+sel4_teeos_import_project()
+
+CAmkESAddCPPInclude(${SEL4_TEEOS_INCLUDE})
+
+add_subdirectory(ree_comm)
 
 DeclareCAmkESRootserver(teeos_amp.camkes)
 

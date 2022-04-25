@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-component Client {
-    control;
-}
+import <std_connector.camkes>;
+
+#include "ree_comm/ree_comm.camkes"
 
 assembly {
     composition {
-        component Client client;
+        component ree_comm       ree_comm_ch;
+    }
+
+    configuration {
+        ree_comm_ch.dma_pool = 4096;
     }
 }

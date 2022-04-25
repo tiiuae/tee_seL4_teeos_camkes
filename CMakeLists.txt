@@ -41,6 +41,7 @@ set(KernelDebugBuild ON CACHE BOOL "" FORCE)
 set(KernelPrinting ON CACHE BOOL "" FORCE)
 set(KernelCustomDTSOverlay "${CMAKE_CURRENT_LIST_DIR}/overlay-polarfire_amp.dts" CACHE FILEPATH "" FORCE)
 add_compile_definitions(KERNEL_ELF_PADDR_BASE_START=0x0)
+set(KernelHssIhcSyscall ON CACHE BOOL "")
 
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
 
@@ -52,17 +53,7 @@ find_package(seL4 REQUIRED)
 sel4_configure_platform_settings()
 
 ##############################################################################
-project(teeos_camkes C CXX ASM)
-
-# rdtime-counter frequency
-config_set(HwTimerFreq HW_TIMER_FREQ 1000000)
-
-set(ExtraCompileOptions
-    -Werror
-    -Wall
-    -Wextra
-    -g
-)
+project(sel4_teeos_camkes C CXX ASM)
 
 find_package(camkes-tool REQUIRED)
 camkes_tool_setup_camkes_build_environment()
