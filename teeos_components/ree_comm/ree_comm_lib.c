@@ -25,59 +25,82 @@
 struct camkes_app_ctx {
     ps_io_ops_t ops;
 
-    void *ihc_buf_va;
-    uintptr_t ihc_buf_pa;
-
-    struct sel4_rpmsg_config temp_rpmsg_cfg;
+    struct sel4_rpmsg_config rpmsg_cfg;
 };
 
 static struct camkes_app_ctx app_ctx;
 
-#define SBI_EXT_IHC_RX 0x2
-
-/* Temporary implementation to ack IHC interrupts and enable linux boot */
-void ree_comm_irq_handle(irq_acknowledge_fn tty_irq_ack)
+static int setup_rpsmg(struct camkes_app_ctx *ctx, 
+                       struct ree_comm_lib_cfg *lib_cfg)
 {
     int err = -1;
 
-    struct ihc_sbi_msg *resp = app_ctx.ihc_buf_va;
+    /* Copy rpmsg_cfg BEFORE allocating IHC buffer */
+    memcpy(&ctx->rpmsg_cfg, &lib_cfg->rpmsg_cfg, sizeof(struct sel4_rpmsg_config));
 
-    ZF_LOGI("irq_handle");
-
-    if (!tty_irq_ack) {
-        ZF_LOGF("Invalid params");
-        return;
+    /* IHC memory allocation */
+    ctx->rpmsg_cfg.ihc_buf_va = camkes_dma_alloc(sizeof(struct ihc_sbi_msg), 0, 0);
+    if (!ctx->rpmsg_cfg.ihc_buf_va) {
+        ZF_LOGF("camkes_dma_alloc error");
+        return -ENOMEM;
     }
 
-    memset(app_ctx.ihc_buf_va, 0xFF, sizeof(struct ihc_sbi_msg));
-
-    seL4_HssIhcCall(SBI_EXT_IHC_RX, IHC_CONTEXT_A, app_ctx.ihc_buf_pa);
-
-    switch (resp->irq_type) {
-    case IHC_MP_IRQ:
-        ZF_LOGI("IHC_MP_IRQ: [0x%x 0x%x]", resp->ihc_msg.msg[0],
-                resp->ihc_msg.msg[1]);
-        break;
-    case IHC_ACK_IRQ:
-        ZF_LOGI("IHC_ACK_IRQ");
-        break;
-    default:
-        ZF_LOGI("IRQ N/A [0x%x]", resp->irq_type);
+    ctx->rpmsg_cfg.ihc_buf_pa = camkes_dma_get_paddr(ctx->rpmsg_cfg.ihc_buf_va);
+    if (!ctx->rpmsg_cfg.ihc_buf_pa) {
+        ZF_LOGF("camkes_dma_get_paddr error");
+        return -EIO;
     }
 
-    err = tty_irq_ack();
-    ZF_LOGF_IF(err, "irq_acknowledge");
+    /* Create RPMSG remote endpoint and wait for master to come online */
+    err = rpmsg_create_sel4_ept(&ctx->rpmsg_cfg);
+    if (err) {
+        return err;
+    }
+
+    /* Announce RPMSG TTY endpoint to linux */
+    err = rpmsg_announce_sel4_ept();
+    if (err) {
+        return err;
+    }
+
+    return err;
 }
 
-
-/* run the control thread */
-int ree_comm_run(irq_acknowledge_fn tty_irq_ack,
-                    void *crashlog_buf) 
+static int wait_ree_rpmsg_msg()
 {
     int err = -1;
-    uint8_t *crashlog = (uint8_t *) crashlog_buf;
+    char *msg = NULL;
+    uint32_t msg_len = 0;
 
-    if (!tty_irq_ack || !crashlog_buf) {
+    while (1) {
+        ZF_LOGI("waiting REE msg...");
+
+        /* function allocates memory for msg */
+        err = rpmsg_wait_ree_msg(&msg, &msg_len);
+        if (err) {
+            ZF_LOGE("ERROR rpmsg_wait_ree_msg: %d", err);
+            continue;
+        }
+
+        ZF_LOGI("REE msg: %d", msg_len);
+
+        free(msg);
+        msg = NULL;
+    }
+
+    return err;
+}
+
+int ree_comm_run(struct ree_comm_lib_cfg *lib_cfg) 
+{
+    int err = -1;
+
+    if(!lib_cfg ||
+       !lib_cfg->crashlog_buf ||
+       !lib_cfg->rpmsg_cfg.vring_va ||
+       !lib_cfg->rpmsg_cfg.vring_pa ||
+       !lib_cfg->rpmsg_cfg.irq_notify_wait ||
+       !lib_cfg->rpmsg_cfg.irq_handler_ack) {
         ZF_LOGF("Invalid params");
         return -EINVAL;
     }
@@ -90,43 +113,10 @@ int ree_comm_run(irq_acknowledge_fn tty_irq_ack,
         return err;
     }
 
-    /* Temporary config struct for rpmsg to setup IRQ */
-    ZF_LOGI("platform_init");
-    platform_init_sel4(&app_ctx.temp_rpmsg_cfg);
-
-    err = platform_init();
+    err = setup_rpsmg(&app_ctx, lib_cfg);
     if (err) {
-        ZF_LOGF("platform_init: %d", err);
         return err;
     }
 
-    /* IHC memory allocation */
-    app_ctx.ihc_buf_va = camkes_dma_alloc(sizeof(struct ihc_sbi_msg), 0, 0);
-    if (!app_ctx.ihc_buf_va) {
-        ZF_LOGF("camkes_dma_alloc error");
-        return -ENOMEM;
-    }
-
-    app_ctx.ihc_buf_pa = camkes_dma_get_paddr(app_ctx.ihc_buf_va);
-    if (!app_ctx.ihc_buf_pa) {
-        ZF_LOGF("camkes_dma_get_paddr error");
-        return -EIO;
-    }
-
-    ZF_LOGI("IHC buff va: %p [pa: %p]", app_ctx.ihc_buf_va, (void*) app_ctx.ihc_buf_pa);
-
-    memset(app_ctx.ihc_buf_va, 0x0, sizeof(struct ihc_sbi_msg));
-
-    memset(crashlog, 0x0, SEL4_CRASHLOG_LEN);
-    memcpy(crashlog, "seL4 alive!!", 12);
-
-    /* Handle next irq */
-    ZF_LOGI("Ack IRQ");
-    err = tty_irq_ack();
-    if (err) {
-        ZF_LOGF("irq_acknowledge: %d", err);
-        return err;
-    }
-
-    return 0;
+    return wait_ree_rpmsg_msg();
 }

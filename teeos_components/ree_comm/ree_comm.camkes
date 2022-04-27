@@ -31,15 +31,19 @@ component ree_comm {
 
     dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
 
+    emits MyEvent                       rpmsg_ntf_source;
+    consumes MyEvent                    rpmsg_ntf_target;
+
     composition {
         component tty_device                tty_dev;
 
         connection seL4HardwareMMIO         tty_mmio(from rpmsg_buf, to tty_dev.rpmsg_buf);
-        connection seL4HardwareInterrupt    tty_irq(from tty_dev.irq, to tty_irq);
+        connection seL4HardwareInterrupt    tty_irq_ihc(from tty_dev.irq, to tty_irq);
 
         component crashlog_device           crashlog_dev;
         connection seL4HardwareMMIO         crashlog_mmio(from crashlog_buf, to crashlog_dev.crashlog_buf);
 
+        connection seL4Notification         rmpsg_irq_ntf(from rpmsg_ntf_source, to rpmsg_ntf_target);
     }
 
     configuration {

@@ -27,5 +27,6 @@ DeclareCAmkESComponent(ree_comm
     SOURCES
         ree_comm.c
     LIBS
+        rpmsg_lite
         ree_comm_lib
 )

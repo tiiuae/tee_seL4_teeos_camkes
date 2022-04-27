@@ -7,11 +7,14 @@
 #define _REE_COMM_H_
 
 #include <stdint.h>
+#include <rpmsg_sel4.h>
 
-typedef int (*irq_acknowledge_fn)(void);
+struct ree_comm_lib_cfg {
+    struct sel4_rpmsg_config rpmsg_cfg;
 
-void ree_comm_irq_handle(irq_acknowledge_fn tty_irq_ack);
-int ree_comm_run(irq_acknowledge_fn tty_irq_ack,
-                 void *crashlog_buf);
+    void *crashlog_buf;
+};
+
+int ree_comm_run(struct ree_comm_lib_cfg *lib_cfg);
 
 #endif /* _REE_COMM_H_ */
