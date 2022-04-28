@@ -23,7 +23,7 @@ component crashlog_device {
     dataport Buf(SEL4_CRASHLOG_LEN) crashlog_buf;
 }
 
-component ree_comm {
+component Ree_comm {
     control;
 
     dataport Buf(RPMSG_BUFFER_LEN)      rpmsg_buf;

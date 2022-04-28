@@ -10,10 +10,10 @@ import <std_connector.camkes>;
 
 assembly {
     composition {
-        component ree_comm       ree_comm_ch;
+        component Ree_comm          ree_comm;
     }
 
     configuration {
-        ree_comm_ch.dma_pool = 4096;
+        ree_comm.dma_pool = 4096;
     }
 }

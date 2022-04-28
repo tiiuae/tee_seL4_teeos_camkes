@@ -5,13 +5,18 @@
 #
 
 add_library(ree_comm_lib STATIC
-    ree_comm_lib.c
+    ree_comm.c
 )
 
 target_compile_options(ree_comm_lib PRIVATE
     -Wall
     -Wextra
     -Werror
+)
+
+target_include_directories(ree_comm_lib
+    PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
 target_link_libraries(ree_comm_lib
@@ -22,11 +27,12 @@ target_link_libraries(ree_comm_lib
         muslc
 )
 
-DeclareCAmkESComponent(ree_comm
+DeclareCAmkESComponent(Ree_comm
     INCLUDES
-    SOURCES
-        ree_comm.c
     LIBS
         rpmsg_lite
         ree_comm_lib
+    C_FLAGS
+        -Wall
+        -Werror
 )
