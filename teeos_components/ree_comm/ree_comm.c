@@ -55,41 +55,62 @@ typedef int (*ree_tee_msg_fn)(struct ree_tee_hdr*, struct ree_tee_hdr**, struct 
                        struct ree_tee_hdr *tee_err_msg)
 
 DECL_MSG_FN(ree_tee_rng_req);
+DECL_MSG_FN(ree_tee_deviceid_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
 static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_RNG_REQ, (uintptr_t)ree_tee_rng_req},
+    {REE_TEE_DEVICEID_REQ, (uintptr_t)ree_tee_deviceid_req},
 };
 
-static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
+static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg)
 {
     int err = -1;
+    int32_t reply_type = REE_TEE_DEVICEID_RESP;
+    size_t reply_len = sizeof(struct ree_tee_deviceid_cmd);
+    struct ree_tee_deviceid_cmd *reply = NULL;
 
-    /* IHC memory allocation */
-    cfg->ihc_buf_va = camkes_dma_alloc(sizeof(struct ihc_sbi_msg), 0, 0);
-    if (!cfg->ihc_buf_va) {
-        ZF_LOGF("camkes_dma_alloc error");
-        return -ENOMEM;
-    }
+    uint32_t serial_len = 0;
 
-    cfg->ihc_buf_pa = camkes_dma_get_paddr(cfg->ihc_buf_va);
-    if (!cfg->ihc_buf_pa) {
-        ZF_LOGF("camkes_dma_get_paddr error");
-        return -EIO;
-    }
+    ZF_LOGI("%s", __FUNCTION__);
 
-    /* Create RPMSG remote endpoint and wait for master to come online */
-    err = rpmsg_create_sel4_ept(cfg);
+    /* get serial number from sys_ctl */
+    err = ipc_sys_ctl_get_serial_number(&serial_len);
     if (err) {
-        return err;
+        ZF_LOGE("ERROR ipc_sys_ctl_get_serial_number: %d", err);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
     }
 
-    /* Announce RPMSG TTY endpoint to linux */
-    err = rpmsg_announce_sel4_ept();
-    if (err) {
-        return err;
+    if (serial_len != DEVICE_ID_LENGTH) {
+        ZF_LOGE("ERROR invalid serial number length: %d", serial_len);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
     }
+
+    reply = malloc(reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR out of memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    /* copy serial number from IPC buffer*/
+    memcpy(reply->response, ipc_sys_ctl_buf, DEVICE_ID_LENGTH);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -124,7 +145,7 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     reply = malloc(reply_len);
     if (!reply) {
-        ZF_LOGE("ERROR ou tof memory");
+        ZF_LOGE("ERROR out of memory");
         err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
@@ -257,6 +278,38 @@ void tty_irq_handle(void)
     ZF_LOGI("tty_irq_handle");
 
     rpmsg_ntf_source_emit();
+}
+
+static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
+{
+    int err = -1;
+
+    /* IHC memory allocation */
+    cfg->ihc_buf_va = camkes_dma_alloc(sizeof(struct ihc_sbi_msg), 0, 0);
+    if (!cfg->ihc_buf_va) {
+        ZF_LOGF("camkes_dma_alloc error");
+        return -ENOMEM;
+    }
+
+    cfg->ihc_buf_pa = camkes_dma_get_paddr(cfg->ihc_buf_va);
+    if (!cfg->ihc_buf_pa) {
+        ZF_LOGF("camkes_dma_get_paddr error");
+        return -EIO;
+    }
+
+    /* Create RPMSG remote endpoint and wait for master to come online */
+    err = rpmsg_create_sel4_ept(cfg);
+    if (err) {
+        return err;
+    }
+
+    /* Announce RPMSG TTY endpoint to linux */
+    err = rpmsg_announce_sel4_ept();
+    if (err) {
+        return err;
+    }
+
+    return err;
 }
 
 int run()

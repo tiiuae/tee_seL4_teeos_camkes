@@ -6,4 +6,5 @@
 
 procedure sys_ctl_2_ree_comm {
     int get_rng(out uint32_t rng_len);
+    int get_serial_number(out uint32_t serial_len);
 }
