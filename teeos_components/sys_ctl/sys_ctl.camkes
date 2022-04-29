@@ -1,0 +1,33 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+
+import <std_connector.camkes>;
+
+#include "sys_ctl_defs.h"
+
+component Sys_ctl_dev {
+    hardware;
+
+    dataport Buf(SYS_CTL_REG_LEN) reg;
+}
+
+component Sys_ctl {
+    control;
+
+    dataport Buf(SYS_CTL_REG_LEN)       sys_ctl_reg;
+
+    composition {
+        component Sys_ctl_dev           sys_ctl_dev;
+
+        connection seL4HardwareMMIO     sys_ctl_mmio(from sys_ctl_reg, to sys_ctl_dev.reg);
+    }
+
+    configuration {
+        sys_ctl_dev.reg_paddr = SYS_CTL_REG_PADDR;
+        sys_ctl_dev.reg_size = SYS_CTL_REG_LEN;
+    }
+}

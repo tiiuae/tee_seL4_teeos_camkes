@@ -10,6 +10,7 @@ sel4_teeos_import_project()
 CAmkESAddCPPInclude(${SEL4_TEEOS_INCLUDE})
 
 add_subdirectory(ree_comm)
+add_subdirectory(sys_ctl)
 
 DeclareCAmkESRootserver(teeos_amp.camkes)
 

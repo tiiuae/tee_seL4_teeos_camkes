@@ -33,6 +33,14 @@
 		reg = <0x0 0x80200000 0x0 0x8E00000>;
 	};
 
+	mailbox@37020800 {
+		compatible = "microchip,mpfs-mailbox";
+		reg = <0x0 0x37020000 0x0 0x2000>;
+		interrupt-parent = <&L1>;
+		interrupts = <96>;
+		#mbox-cells = <1>;
+	};
+
 	/* RPMSG vring reservation from linux devicetree
 	 *
 	 * Combines memory areas reserved for rpmsg and rpmsg_dma_reserved

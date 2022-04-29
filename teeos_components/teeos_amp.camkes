@@ -6,11 +6,13 @@
 
 import <std_connector.camkes>;
 
-#include "ree_comm/ree_comm.camkes"
+import "ree_comm/ree_comm.camkes";
+import "sys_ctl/sys_ctl.camkes";
 
 assembly {
     composition {
         component Ree_comm          ree_comm;
+        component Sys_ctl           sys_ctl;
     }
 
     configuration {
