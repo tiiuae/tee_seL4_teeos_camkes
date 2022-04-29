@@ -7,20 +7,25 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Local log level */
+#define ZF_LOG_LEVEL    ZF_LOG_ERROR
+#include <utils/util.h>
+#include <utils/zf_log.h>
+#include <utils/zf_log_if.h>
+#include <utils/debug.h>
+
 #include <camkes.h>
 #include <camkes/io.h>
 #include <camkes/irq.h>
 #include <camkes/dataport.h>
 #include <camkes/dma.h>
-#include <utils/zf_log.h>
-#include <utils/zf_log_if.h>
-#include <utils/debug.h>
 
 #include <linux/dt-bindings/mailbox/miv-ihc.h>
 #include <linux/mailbox/miv_ihc_message.h>
 
 #include <rpmsg_platform.h>
 #include <rpmsg_sel4.h>
+#include <ree_tee_msg.h>
 #include "ree_comm_defs.h"
 
 struct camkes_app_ctx {
@@ -30,6 +35,32 @@ struct camkes_app_ctx {
 };
 
 static struct camkes_app_ctx app_ctx;
+
+#define SET_REE_HDR(hdr, msg, stat, len) {  \
+            (hdr)->msg_type = msg;          \
+            (hdr)->status = stat;           \
+            (hdr)->length = len;            \
+        }
+
+#define REE_HDR_LEN     sizeof(struct ree_tee_hdr)
+
+/* For succesfull operation function allocates memory for reply_msg.
+ * Otherwise function sets err_msg and frees all allocated memory
+  */
+typedef int (*ree_tee_msg_fn)(struct ree_tee_hdr*, struct ree_tee_hdr**, struct ree_tee_hdr*);
+
+#define DECL_MSG_FN(fn_name)                           \
+    static int fn_name(struct ree_tee_hdr *ree_msg,    \
+                       struct ree_tee_hdr **tee_msg, \
+                       struct ree_tee_hdr *tee_err_msg)
+
+DECL_MSG_FN(ree_tee_rng_req);
+
+#define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
+
+static uintptr_t ree_tee_fn[][2] = {
+    {REE_TEE_RNG_REQ, (uintptr_t)ree_tee_rng_req},
+};
 
 static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
 {
@@ -63,26 +94,146 @@ static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
     return err;
 }
 
+static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
+                           struct ree_tee_hdr **tee_msg,
+                           struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    int32_t reply_type = REE_TEE_RNG_RESP;
+    size_t reply_len = sizeof(struct ree_tee_rng_cmd);
+    struct ree_tee_rng_cmd *reply = NULL;
+
+    uint32_t rng_len = 0;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    /* get random bytes from sys_ctl */
+    err = ipc_sys_ctl_get_rng(&rng_len);
+    if (err) {
+        ZF_LOGE("ERROR ipc_sys_ctl_get_rng: %d", err);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    if (rng_len != RNG_SIZE_IN_BYTES) {
+        ZF_LOGE("ERROR invalid rng len: %d", rng_len);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    reply = malloc(reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR ou tof memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    /* copy random numbers from IPC buffer*/
+    memcpy(reply->response, ipc_sys_ctl_buf, RNG_SIZE_IN_BYTES);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
+
+    return err;
+}
+
+static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
+                            struct ree_tee_hdr **tee_msg,
+                            struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    ree_tee_msg_fn msg_fn = NULL;
+
+    ZF_LOGI("msg type: %d, len: %d", ree_msg->msg_type, ree_msg->length);
+
+    /* Find msg handler callback */
+    for (int i = 0; i < (ssize_t)FN_LIST_LEN(ree_tee_fn); i++) {
+        /* Check if msg type is found from callback list */
+        if (ree_tee_fn[i][0] != (uint32_t)ree_msg->msg_type) {
+            continue;
+        }
+
+        /* Call msg handler function */
+        msg_fn = (ree_tee_msg_fn)ree_tee_fn[i][1];
+        err = msg_fn(ree_msg, tee_msg, tee_err_msg);
+        if (err) {
+            ZF_LOGE("ERROR msg_fn: %d", err);
+        }
+        break;
+    }
+
+    /* Unknown message */
+    if (!msg_fn) {
+        ZF_LOGE("ERROR unknown msg: %d", ree_msg->msg_type);
+        err = TEE_UNKNOWN_MSG;
+
+        /* Use received unknown msg type in response */
+        SET_REE_HDR(tee_err_msg, ree_msg->msg_type, err, REE_HDR_LEN);
+    }
+
+    return err;
+}
+
 static int wait_ree_rpmsg_msg()
 {
     int err = -1;
     char *msg = NULL;
     uint32_t msg_len = 0;
+    struct ree_tee_hdr *tee_msg = NULL;
+    struct ree_tee_hdr tee_err_msg = { 0 };
+
+    struct ree_tee_hdr *send_msg = NULL;
 
     while (1) {
-        ZF_LOGI("waiting REE msg...");
+        ZF_LOGV("waiting REE msg...");
 
         /* function allocates memory for msg */
         err = rpmsg_wait_ree_msg(&msg, &msg_len);
         if (err) {
             ZF_LOGE("ERROR rpmsg_wait_ree_msg: %d", err);
+
+            /* try to send error response, best effort only */
+            SET_REE_HDR(&tee_err_msg, REE_TEE_STATUS_RESP, err, REE_HDR_LEN);
+            rpmsg_send_ree_msg((char *)&tee_err_msg, tee_err_msg.length);
+
             continue;
         }
 
-        ZF_LOGI("REE msg: %d", msg_len);
+        /* function allocates memory for reply or returns err_msg */
+        err = handle_rpmsg_msg((struct ree_tee_hdr*)msg, &tee_msg, &tee_err_msg);
 
+        if (err) {
+            ZF_LOGE("ERROR handle_rpmsg_msg: %d", err);
+            send_msg = &tee_err_msg;
+        } else {
+            send_msg = tee_msg;
+        }
+
+        /* msg buffer not needed anymore */
         free(msg);
         msg = NULL;
+
+        ZF_LOGV("resp type %d, len %d", send_msg->msg_type, send_msg->length);
+
+        err = rpmsg_send_ree_msg((char *)send_msg, send_msg->length);
+        if (err) {
+            /* These are more or less fatal errors, abort*/
+            ZF_LOGF("ERROR rpmsg_send_ree_msg: %d", err);
+            return err;
+        }
+
+        free(tee_msg);
+        tee_msg = NULL;
     }
 
     return err;
@@ -118,16 +269,13 @@ int run()
     /* sys_ctl ping */
     err = ipc_sys_ctl_get_rng(&rng_len);
     if (err) {
-        ZF_LOGE("ipc_sys_ctl_get_rng: %d", err);
+        ZF_LOGE("ERROR ipc_sys_ctl_get_rng: %d", err);
         return err;
     }
 
-    ZF_LOGI("ipc_sys_ctl_get_rng [%d]", rng_len);
-    utils_memory_dump(ipc_sys_ctl_buf, rng_len, 1);
-
     err = camkes_io_ops(&app_ctx.ops);
     if (err) {
-        ZF_LOGF("camkes_io_ops: %d", err);
+        ZF_LOGF("ERROR camkes_io_ops: %d", err);
         return err;
     }
 
