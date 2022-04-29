@@ -25,6 +25,7 @@ target_link_libraries(ree_comm_lib
         sel4camkes
         rpmsg_lite
         muslc
+        ipc_api_lib
 )
 
 DeclareCAmkESComponent(Ree_comm

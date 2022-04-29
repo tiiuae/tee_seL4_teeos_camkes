@@ -21,22 +21,31 @@
 
 #define UNUSED_VALUE        0x0
 
-int run(void)
+int ipc_sys_ctl_get_rng(uint32_t *rng_len)
 {
     int err = -1;
-    uint8_t rng[32] = { 0 };
 
+    err = nonce_service((uint8_t *)ipc_sys_ctl_buf);
+    if (err) {
+        ZF_LOGE("ERROR nonce_service: %d", err);
+        return err;
+    }
+
+    *rng_len = MSS_SYS_NONCE_SERVICE_RESP_LEN;
+
+    return err;
+}
+
+void pre_init(void)
+{
     uint32_t *sys_ctl_base = (uint32_t *)sys_ctl_reg;
     uint32_t *sys_ctl_mailbox = (uint32_t *)(sys_ctl_reg + SYS_CTL_MB_OFFSET);
 
-    ZF_LOGI("started: sys_ctl");
-
     set_sys_ctl_address(sys_ctl_base, sys_ctl_mailbox, UNUSED_VALUE);
+}
 
-    err = nonce_service(rng);
-
-    ZF_LOGI("nonce_service: %d", err);
-    utils_memory_dump(rng, sizeof(rng), 1);
-
+int run(void)
+{
+    ZF_LOGI("started: sys_ctl");
     return 0;
 }

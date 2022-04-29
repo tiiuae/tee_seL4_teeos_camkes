@@ -14,6 +14,7 @@
 #include <camkes/dma.h>
 #include <utils/zf_log.h>
 #include <utils/zf_log_if.h>
+#include <utils/debug.h>
 
 #include <linux/dt-bindings/mailbox/miv-ihc.h>
 #include <linux/mailbox/miv_ihc_message.h>
@@ -107,11 +108,22 @@ void tty_irq_handle(void)
     rpmsg_ntf_source_emit();
 }
 
-int run() 
+int run()
 {
     int err = -1;
+    uint32_t rng_len = 0;
 
     ZF_LOGI("started: ree_comm");
+
+    /* sys_ctl ping */
+    err = ipc_sys_ctl_get_rng(&rng_len);
+    if (err) {
+        ZF_LOGE("ipc_sys_ctl_get_rng: %d", err);
+        return err;
+    }
+
+    ZF_LOGI("ipc_sys_ctl_get_rng [%d]", rng_len);
+    utils_memory_dump(ipc_sys_ctl_buf, rng_len, 1);
 
     err = camkes_io_ops(&app_ctx.ops);
     if (err) {

@@ -26,6 +26,7 @@ target_link_libraries(sys_ctl_lib
         sel4camkes
         muslc
         sysctllib
+        ipc_api_lib
 )
 
 DeclareCAmkESComponent(Sys_ctl

@@ -1,0 +1,9 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+procedure sys_ctl_2_ree_comm {
+    int get_rng(out uint32_t rng_len);
+}

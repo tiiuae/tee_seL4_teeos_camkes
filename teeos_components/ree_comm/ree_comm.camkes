@@ -6,9 +6,11 @@
 
 
 import <std_connector.camkes>;
+import <ipc_interface.idl4>;
 
 #include <linux/dt-bindings/mailbox/miv-ihc.h>
 #include "ree_comm_defs.h"
+#include "ipc_interface.h"
 
 component tty_device {
     hardware;
@@ -31,8 +33,11 @@ component Ree_comm {
 
     dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
 
-    emits MyEvent                       rpmsg_ntf_source;
-    consumes MyEvent                    rpmsg_ntf_target;
+    emits rpmsg_ntf_event               rpmsg_ntf_source;
+    consumes rpmsg_ntf_event            rpmsg_ntf_target;
+
+    dataport Buf(IPC_SYSCTL_REECOMM_LEN) ipc_sys_ctl_buf;
+    uses sys_ctl_2_ree_comm             ipc_sys_ctl;
 
     composition {
         component tty_device                tty_dev;
