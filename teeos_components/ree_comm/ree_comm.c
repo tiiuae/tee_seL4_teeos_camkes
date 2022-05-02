@@ -32,6 +32,8 @@ struct camkes_app_ctx {
     ps_io_ops_t ops;
 
     struct sel4_rpmsg_config rpmsg_cfg;
+
+    uint64_t debug_config;
 };
 
 static struct camkes_app_ctx app_ctx;
@@ -56,12 +58,16 @@ typedef int (*ree_tee_msg_fn)(struct ree_tee_hdr*, struct ree_tee_hdr**, struct 
 
 DECL_MSG_FN(ree_tee_rng_req);
 DECL_MSG_FN(ree_tee_deviceid_req);
+DECL_MSG_FN(ree_tee_status_req);
+DECL_MSG_FN(ree_tee_config_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
 static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_RNG_REQ, (uintptr_t)ree_tee_rng_req},
     {REE_TEE_DEVICEID_REQ, (uintptr_t)ree_tee_deviceid_req},
+    {REE_TEE_STATUS_REQ, (uintptr_t)ree_tee_status_req},
+    {REE_TEE_CONFIG_REQ, (uintptr_t)ree_tee_config_req},
 };
 
 static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
@@ -156,6 +162,84 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
     memcpy(reply->response, ipc_sys_ctl_buf, RNG_SIZE_IN_BYTES);
 
     *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
+
+    return err;
+}
+
+static int ree_tee_status_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    int32_t reply_type = REE_TEE_STATUS_RESP;
+    size_t reply_len = REE_HDR_LEN;
+    struct ree_tee_hdr *reply = NULL;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    reply = calloc(1, reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR out of memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    SET_REE_HDR(reply, reply_type, TEE_OK, reply_len);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
+
+    return err;
+}
+
+static int ree_tee_config_req(struct ree_tee_hdr *ree_msg,
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    struct ree_tee_config_cmd *req = (struct ree_tee_config_cmd *)ree_msg;
+
+    int32_t reply_type = REE_TEE_CONFIG_RESP;
+    size_t reply_len = sizeof(struct ree_tee_config_cmd);
+    struct ree_tee_config_cmd *reply = NULL;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    reply = calloc(1, reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR out of memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    /* Current config in reply */
+    if (req->debug_config & (1UL << 63)) {
+        reply->debug_config = app_ctx.debug_config;
+    } else {
+        app_ctx.debug_config = req->debug_config;
+        ZF_LOGI("DEBUG config 0x%lx", req->debug_config);
+    }
+
+    SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    ZF_LOGI("reply->debug_config 0x%lx", reply->debug_config);
 
     return 0;
 
@@ -317,7 +401,7 @@ int run()
     int err = -1;
     uint32_t rng_len = 0;
 
-    ZF_LOGI("started: ree_comm");
+    ZF_LOGE("started: ree_comm");
 
     /* sys_ctl ping */
     err = ipc_sys_ctl_get_rng(&rng_len);
