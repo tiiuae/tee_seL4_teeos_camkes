@@ -37,7 +37,7 @@ component Ree_comm {
     consumes rpmsg_ntf_event            rpmsg_ntf_target;
 
     dataport Buf(IPC_SYSCTL_REECOMM_LEN) ipc_sys_ctl_buf;
-    uses sys_ctl_2_ree_comm             ipc_sys_ctl;
+    uses sys_ctl_ipc_if                 ipc_sys_ctl;
 
     composition {
         component tty_device                tty_dev;

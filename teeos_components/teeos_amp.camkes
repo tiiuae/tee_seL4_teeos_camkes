@@ -16,11 +16,11 @@ assembly {
 
         connection seL4RPCCall      ipc_ree_com_sys_ctl(
                                         from ree_comm.ipc_sys_ctl,
-                                        to sys_ctl.ipc_sys_ctl);
+                                        to sys_ctl.ipc_ree_comm);
 
         connection seL4SharedData   ipc_ree_com_sys_ctl_data(
                                         from ree_comm.ipc_sys_ctl_buf,
-                                        to sys_ctl.ipc_sys_ctl_buf);
+                                        to sys_ctl.ipc_ree_comm_buf);
     }
 
     configuration {

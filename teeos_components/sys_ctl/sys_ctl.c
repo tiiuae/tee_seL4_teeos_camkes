@@ -21,9 +21,9 @@
 
 #define UNUSED_VALUE        0x0
 
-int ipc_sys_ctl_get_serial_number(uint32_t *serial_len)
+int ipc_ree_comm_get_serial_number(uint32_t *serial_len)
 {
-    int err = get_serial_number((uint8_t *)ipc_sys_ctl_buf);
+    int err = get_serial_number((uint8_t *)ipc_ree_comm_buf);
     if (err) {
         ZF_LOGE("ERROR get_serial_number: %d", err);
         return err;
@@ -34,9 +34,9 @@ int ipc_sys_ctl_get_serial_number(uint32_t *serial_len)
     return err;
 }
 
-int ipc_sys_ctl_get_rng(uint32_t *rng_len)
+int ipc_ree_comm_get_rng(uint32_t *rng_len)
 {
-    int err = nonce_service((uint8_t *)ipc_sys_ctl_buf);
+    int err = nonce_service((uint8_t *)ipc_ree_comm_buf);
     if (err) {
         ZF_LOGE("ERROR nonce_service: %d", err);
         return err;
