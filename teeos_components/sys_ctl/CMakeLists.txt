@@ -25,7 +25,8 @@ target_link_libraries(sys_ctl_lib
         sel4runtime
         sel4camkes
         muslc
-        sysctllib
+        sys_ctl_services
+        teeos_service
         ipc_api_lib
 )
 

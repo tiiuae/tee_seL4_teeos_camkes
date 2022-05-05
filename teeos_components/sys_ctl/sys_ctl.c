@@ -17,13 +17,14 @@
 #include <utils/debug.h>
 
 #include <sys_ctl_service.h>
+#include <teeos_service.h>
 #include "sys_ctl_defs.h"
 
 #define UNUSED_VALUE        0x0
 
-int ipc_ree_comm_get_serial_number(uint32_t *serial_len)
+static int ipc_get_serial_number(uint32_t *serial_len, uint8_t *buf)
 {
-    int err = get_serial_number((uint8_t *)ipc_ree_comm_buf);
+    int err = get_serial_number(buf);
     if (err) {
         ZF_LOGE("ERROR get_serial_number: %d", err);
         return err;
@@ -34,9 +35,14 @@ int ipc_ree_comm_get_serial_number(uint32_t *serial_len)
     return err;
 }
 
-int ipc_ree_comm_get_rng(uint32_t *rng_len)
+int ipc_ree_comm_get_serial_number(uint32_t *serial_len)
 {
-    int err = nonce_service((uint8_t *)ipc_ree_comm_buf);
+    return ipc_get_serial_number(serial_len, (uint8_t *)ipc_ree_comm_buf);
+}
+
+static int ipc_comm_get_rng(uint32_t *rng_len, uint8_t *buf)
+{
+    int err = nonce_service(buf);
     if (err) {
         ZF_LOGE("ERROR nonce_service: %d", err);
         return err;
@@ -45,6 +51,42 @@ int ipc_ree_comm_get_rng(uint32_t *rng_len)
     *rng_len = MSS_SYS_NONCE_SERVICE_RESP_LEN;
 
     return err;
+}
+
+int ipc_ree_comm_get_rng(uint32_t *rng_len)
+{
+    return ipc_comm_get_rng(rng_len, (uint8_t *)ipc_ree_comm_buf);
+}
+
+static int ipc_puf_emulation_service(
+    uint8_t *ipc_buf,
+    uint32_t ipc_len,
+    uint32_t challenge_pos,
+    uint8_t op_type,
+    uint32_t resp_buf_pos)
+{
+    if (challenge_pos + FEK_SIZE > ipc_len ||
+        resp_buf_pos < FEK_SIZE ||
+        resp_buf_pos + MSS_SYS_PUF_EMULATION_SERVICE_RESP_LEN > ipc_len) {
+        ZF_LOGE("invalid parameters: %d, %d", challenge_pos, resp_buf_pos);
+        return -EINVAL;
+    }
+
+    return puf_emulation_service(ipc_buf + challenge_pos,
+                                 op_type,
+                                 ipc_buf + resp_buf_pos);
+}
+
+int ipc_ree_comm_puf_emulation_service(
+    uint32_t challenge_pos,
+    uint8_t op_type,
+    uint32_t resp_buf_pos)
+{
+    return ipc_puf_emulation_service((uint8_t *)ipc_ree_comm_buf,
+                                     ipc_ree_comm_buf_size,
+                                     challenge_pos,
+                                     op_type,
+                                     resp_buf_pos);
 }
 
 void pre_init(void)
