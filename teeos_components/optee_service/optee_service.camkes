@@ -15,4 +15,7 @@ component Optee_service {
 
     dataport Buf(IPC_SYSCTL_OPTEE_LEN)  ipc_sys_ctl_buf;
     uses sys_ctl_ipc_if                 ipc_sys_ctl;
+
+    dataport Buf(IPC_OPTEE_REECOMM_LEN) ipc_ree_comm_buf;
+    provides optee_ipc_if               ipc_ree_comm;
 }

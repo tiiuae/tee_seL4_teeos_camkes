@@ -12,3 +12,7 @@ procedure sys_ctl_ipc_if {
                               in uint8_t op_type,
                               in uint32_t resp_buf_pos);
 }
+
+procedure optee_ipc_if {
+    int init();
+}

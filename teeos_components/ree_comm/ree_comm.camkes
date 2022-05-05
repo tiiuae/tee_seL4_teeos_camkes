@@ -39,6 +39,9 @@ component Ree_comm {
     dataport Buf(IPC_SYSCTL_REECOMM_LEN) ipc_sys_ctl_buf;
     uses sys_ctl_ipc_if                 ipc_sys_ctl;
 
+    dataport Buf(IPC_OPTEE_REECOMM_LEN) ipc_optee_buf;
+    uses optee_ipc_if                   ipc_optee;
+
     composition {
         component tty_device                tty_dev;
 

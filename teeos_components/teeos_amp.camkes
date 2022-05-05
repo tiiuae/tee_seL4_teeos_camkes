@@ -25,6 +25,15 @@ assembly {
                                         from ree_comm.ipc_sys_ctl_buf,
                                         to sys_ctl.ipc_ree_comm_buf);
 
+        /* IPC: ree_comm - optee */
+        connection seL4RPCCall      ipc_ree_com_optee(
+                                        from ree_comm.ipc_optee,
+                                        to optee_service.ipc_ree_comm);
+
+        connection seL4SharedData   ipc_ree_com_optee_data(
+                                        from ree_comm.ipc_optee_buf,
+                                        to optee_service.ipc_ree_comm_buf);
+
         /* IPC: optee - sys_ctl */
         connection seL4RPCCall      ipc_optee_sys_ctl(
                                         from optee_service.ipc_sys_ctl,

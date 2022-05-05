@@ -27,7 +27,9 @@ target_link_libraries(optee_service
         sel4camkes
         muslc
         ipc_api_lib
+        opteecrypt
         teeos_service
+        pkcs11_service
 )
 
 DeclareCAmkESComponent(Optee_service

@@ -16,7 +16,19 @@
 #include <utils/zf_log_if.h>
 #include <utils/debug.h>
 
+#include <pkcs11_service.h>
+#include <sel4_optee_serializer.h>
 #include <teeos_service.h>
+
+int ipc_ree_comm_init(void)
+{
+    int err = teeos_init_optee();
+    if (err) {
+        ZF_LOGE("ERROR teeos_init_optee: %d", err);
+    }
+
+    return err;
+}
 
 int run(void)
 {

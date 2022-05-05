@@ -60,6 +60,7 @@ DECL_MSG_FN(ree_tee_rng_req);
 DECL_MSG_FN(ree_tee_deviceid_req);
 DECL_MSG_FN(ree_tee_status_req);
 DECL_MSG_FN(ree_tee_config_req);
+DECL_MSG_FN(ree_tee_optee_init_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -68,6 +69,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_DEVICEID_REQ, (uintptr_t)ree_tee_deviceid_req},
     {REE_TEE_STATUS_REQ, (uintptr_t)ree_tee_status_req},
     {REE_TEE_CONFIG_REQ, (uintptr_t)ree_tee_config_req},
+    {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
 };
 
 static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
@@ -251,6 +253,46 @@ err_out:
     return err;
 }
 
+static int ree_tee_optee_init_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    int32_t reply_type = REE_TEE_OPTEE_INIT_RESP;
+    size_t reply_len = REE_HDR_LEN;
+    struct ree_tee_hdr *reply = NULL;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    err = ipc_optee_init();
+    if (err) {
+        ZF_LOGE("ERROR ipc_optee_init_optee: %d", err);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    reply = calloc(1, reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR out of memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    SET_REE_HDR(reply, reply_type, TEE_OK, reply_len);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
+
+    return err;
+}
+
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
                             struct ree_tee_hdr **tee_msg,
                             struct ree_tee_hdr *tee_err_msg)
@@ -401,7 +443,7 @@ int run()
     int err = -1;
     uint32_t rng_len = 0;
 
-    ZF_LOGE("started: ree_comm");
+    ZF_LOGE("started: ree_comm, build date %s-%s", __DATE__, __TIME__);
 
     /* sys_ctl ping */
     err = ipc_sys_ctl_get_rng(&rng_len);
