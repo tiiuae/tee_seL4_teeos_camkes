@@ -12,4 +12,7 @@ import <ipc_interface.idl4>;
 
 component Optee_service {
     control;
+
+    dataport Buf(IPC_SYSCTL_OPTEE_LEN)  ipc_sys_ctl_buf;
+    uses sys_ctl_ipc_if                 ipc_sys_ctl;
 }

@@ -40,6 +40,11 @@ int ipc_ree_comm_get_serial_number(uint32_t *serial_len)
     return ipc_get_serial_number(serial_len, (uint8_t *)ipc_ree_comm_buf);
 }
 
+int ipc_optee_get_serial_number(uint32_t *serial_len)
+{
+    return ipc_get_serial_number(serial_len, (uint8_t *)ipc_optee_buf);
+}
+
 static int ipc_comm_get_rng(uint32_t *rng_len, uint8_t *buf)
 {
     int err = nonce_service(buf);
@@ -56,6 +61,11 @@ static int ipc_comm_get_rng(uint32_t *rng_len, uint8_t *buf)
 int ipc_ree_comm_get_rng(uint32_t *rng_len)
 {
     return ipc_comm_get_rng(rng_len, (uint8_t *)ipc_ree_comm_buf);
+}
+
+int ipc_optee_get_rng(uint32_t *rng_len)
+{
+    return ipc_comm_get_rng(rng_len, (uint8_t *)ipc_optee_buf);
 }
 
 static int ipc_puf_emulation_service(
@@ -84,6 +94,18 @@ int ipc_ree_comm_puf_emulation_service(
 {
     return ipc_puf_emulation_service((uint8_t *)ipc_ree_comm_buf,
                                      ipc_ree_comm_buf_size,
+                                     challenge_pos,
+                                     op_type,
+                                     resp_buf_pos);
+}
+
+int ipc_optee_puf_emulation_service(
+    uint32_t challenge_pos,
+    uint8_t op_type,
+    uint32_t resp_buf_pos)
+{
+    return ipc_puf_emulation_service((uint8_t *)ipc_optee_buf,
+                                     ipc_optee_buf_size,
                                      challenge_pos,
                                      op_type,
                                      resp_buf_pos);

@@ -6,6 +6,7 @@
 
 add_library(optee_service STATIC
     optee_service.c
+    sys_ctl_service_api.c
 )
 
 target_compile_options(optee_service PRIVATE
@@ -25,6 +26,7 @@ target_link_libraries(optee_service
         sel4runtime
         sel4camkes
         muslc
+        ipc_api_lib
         teeos_service
 )
 

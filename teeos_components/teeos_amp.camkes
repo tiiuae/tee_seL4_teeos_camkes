@@ -16,6 +16,7 @@ assembly {
         component Sys_ctl           sys_ctl;
         component Optee_service     optee_service;
 
+        /* IPC: ree_comm - sys_ctl */
         connection seL4RPCCall      ipc_ree_com_sys_ctl(
                                         from ree_comm.ipc_sys_ctl,
                                         to sys_ctl.ipc_ree_comm);
@@ -23,6 +24,15 @@ assembly {
         connection seL4SharedData   ipc_ree_com_sys_ctl_data(
                                         from ree_comm.ipc_sys_ctl_buf,
                                         to sys_ctl.ipc_ree_comm_buf);
+
+        /* IPC: optee - sys_ctl */
+        connection seL4RPCCall      ipc_optee_sys_ctl(
+                                        from optee_service.ipc_sys_ctl,
+                                        to sys_ctl.ipc_optee);
+
+        connection seL4SharedData   ipc_optee_sys_ctl_data(
+                                        from optee_service.ipc_sys_ctl_buf,
+                                        to sys_ctl.ipc_optee_buf);
     }
 
     configuration {

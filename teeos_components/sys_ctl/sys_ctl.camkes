@@ -25,6 +25,9 @@ component Sys_ctl {
     dataport Buf(IPC_SYSCTL_REECOMM_LEN) ipc_ree_comm_buf;
     provides sys_ctl_ipc_if             ipc_ree_comm;
 
+    dataport Buf(IPC_SYSCTL_OPTEE_LEN)  ipc_optee_buf;
+    provides sys_ctl_ipc_if             ipc_optee;
+
     composition {
         component Sys_ctl_dev           sys_ctl_dev;
 
