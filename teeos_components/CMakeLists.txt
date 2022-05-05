@@ -17,6 +17,7 @@ target_include_directories(ipc_api_lib INTERFACE "${CMAKE_CURRENT_LIST_DIR}/ipc_
 
 add_subdirectory(ree_comm)
 add_subdirectory(sys_ctl)
+add_subdirectory(optee_service)
 
 DeclareCAmkESRootserver(teeos_amp.camkes)
 

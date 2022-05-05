@@ -1,0 +1,15 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+
+import <std_connector.camkes>;
+import <ipc_interface.idl4>;
+
+#include "ipc_interface.h"
+
+component Optee_service {
+    control;
+}

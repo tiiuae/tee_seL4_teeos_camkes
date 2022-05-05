@@ -8,11 +8,13 @@ import <std_connector.camkes>;
 
 import "ree_comm/ree_comm.camkes";
 import "sys_ctl/sys_ctl.camkes";
+import "optee_service/optee_service.camkes";
 
 assembly {
     composition {
         component Ree_comm          ree_comm;
         component Sys_ctl           sys_ctl;
+        component Optee_service     optee_service;
 
         connection seL4RPCCall      ipc_ree_com_sys_ctl(
                                         from ree_comm.ipc_sys_ctl,
