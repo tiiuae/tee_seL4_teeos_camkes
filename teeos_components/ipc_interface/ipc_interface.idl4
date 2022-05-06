@@ -11,8 +11,12 @@ procedure sys_ctl_ipc_if {
     int puf_emulation_service(in uint32_t challenge_pos,
                               in uint8_t op_type,
                               in uint32_t resp_buf_pos);
+
+    int secure_nvm_write(in uint8_t format,
+                         in uint8_t snvm_module);
 }
 
 procedure optee_ipc_if {
-    int init();
+    int init(void);
+    int export_storage(void);
 }

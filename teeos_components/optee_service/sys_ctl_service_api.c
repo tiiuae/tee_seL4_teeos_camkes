@@ -73,31 +73,78 @@ int puf_emulation_service
     return 0;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-int nonce_service(uint8_t * p_nonce)
+int nonce_service(uint8_t *p_nonce)
 {
-    ZF_LOGE("NOT IMPLEMENTED");
-    return -EPERM;
+    int err = -1;
+
+    uint32_t rng_len = 0;
+
+    if (!p_nonce) {
+        ZF_LOGE("ERROR invalid param");
+        return -EINVAL;
+    }
+
+    /* get rng from sys_ctl */
+    err = ipc_sys_ctl_get_rng(&rng_len);
+    if (err) {
+        ZF_LOGE("ERROR ipc_sys_ctl_get_rng: %d", err);
+        return err;
+    }
+
+    if (rng_len != MSS_SYS_NONCE_SERVICE_RESP_LEN) {
+        ZF_LOGE("ERROR invalid rng length: %d", rng_len);
+        return -EINVAL;
+    }
+
+    /* copy rng from IPC shared memory */
+    memcpy(p_nonce, ipc_sys_ctl_buf, rng_len);
+
+    return 0;
+
 }
 
+int secure_nvm_write(uint8_t format,
+                     uint8_t snvm_module,
+                     uint8_t *p_data,
+                     uint8_t *p_user_key)
+{
+    int err = -1;
+
+    if (format != MSS_SYS_SNVM_NON_AUTHEN_TEXT_REQUEST_CMD ||
+        p_user_key) {
+        ZF_LOGE("ERROR authenticated writes not supported");
+        return -EPERM;
+    }
+
+    if (!p_data) {
+        ZF_LOGE("ERROR invalid param");
+        return -EINVAL;
+    }
+
+    /* copy challenge to IPC shared memory */
+    memcpy(ipc_sys_ctl_buf, p_data, NVM_PAGE_SIZE);
+
+    /* copy to buffer before IPC call */
+    ipc_sys_ctl_buf_release();
+
+    err = ipc_sys_ctl_secure_nvm_write(format, snvm_module);
+    if (err) {
+        ZF_LOGE("ERROR ipc_sys_ctl_secure_nvm_write: %d", err);
+        return err;
+    }
+
+    return 0;
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 int read_nvm_parameters(uint8_t *resp)
 {
     ZF_LOGE("NOT IMPLEMENTED");
     return -EPERM;
 }
 
-int secure_nvm_write(
-    uint8_t format,
-    uint8_t snvm_module,
-    uint8_t* p_data,
-    uint8_t* p_user_key
-)
-{
-    ZF_LOGE("NOT IMPLEMENTED");
-    return -EPERM;
-}
+
 
 int secure_nvm_read
 (

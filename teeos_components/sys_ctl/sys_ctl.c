@@ -111,6 +111,33 @@ int ipc_optee_puf_emulation_service(
                                      resp_buf_pos);
 }
 
+static int ipc_secure_nvm_write(uint8_t format,
+                                uint8_t snvm_module,
+                                uint8_t *p_data,
+                                uint8_t *p_user_key)
+{
+    return secure_nvm_write(format,
+                            snvm_module,
+                            p_data,
+                            p_user_key);
+}
+
+int ipc_ree_comm_secure_nvm_write(uint8_t format, uint8_t snvm_module)
+{
+    return ipc_secure_nvm_write(format,
+                                snvm_module,
+                                (uint8_t *)ipc_ree_comm_buf,
+                                NULL);
+}
+
+int ipc_optee_secure_nvm_write(uint8_t format, uint8_t snvm_module)
+{
+    return ipc_secure_nvm_write(format,
+                                snvm_module,
+                                (uint8_t *)ipc_optee_buf,
+                                NULL);
+}
+
 void pre_init(void)
 {
     uint32_t *sys_ctl_base = (uint32_t *)sys_ctl_reg;
