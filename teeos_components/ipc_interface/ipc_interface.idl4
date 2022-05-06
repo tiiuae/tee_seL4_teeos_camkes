@@ -14,9 +14,14 @@ procedure sys_ctl_ipc_if {
 
     int secure_nvm_write(in uint8_t format,
                          in uint8_t snvm_module);
+
+    int secure_nvm_read(in uint8_t snvm_module,
+                        in uint32_t admin_offset,
+                        in uint32_t data_offset,
+                        in uint32_t data_len);
 }
 
 procedure optee_ipc_if {
     int init(void);
-    int export_storage(void);
+    int storage_req(in int32_t ree_req_type);
 }

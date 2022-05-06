@@ -62,6 +62,7 @@ DECL_MSG_FN(ree_tee_status_req);
 DECL_MSG_FN(ree_tee_config_req);
 DECL_MSG_FN(ree_tee_optee_init_req);
 DECL_MSG_FN(ree_tee_optee_export_storage_req);
+DECL_MSG_FN(ree_tee_optee_import_storage_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -72,6 +73,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_CONFIG_REQ, (uintptr_t)ree_tee_config_req},
     {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
     {REE_TEE_OPTEE_EXPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_export_storage_req},
+    {REE_TEE_OPTEE_IMPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_import_storage_req},
 };
 
 static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
@@ -302,9 +304,10 @@ err_out:
 }
 
 static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
-                               struct ree_tee_hdr **tee_msg,
-                               struct ree_tee_hdr *tee_err_msg,
-                               int32_t ree_reply_type)
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg,
+                                 int32_t ree_req_type,
+                                 int32_t ree_reply_type)
 {
     int err = -1;
 
@@ -339,7 +342,7 @@ static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
     /* data must be copied to buffer before IPC call */
     ipc_optee_buf_release();
 
-    err = ipc_optee_export_storage();
+    err = ipc_optee_storage_req(ree_req_type);
     if (err) {
         ZF_LOGE("ERROR ipc_optee_export_storage: %d", err);
         err = TEE_IPC_CMD_ERR;
@@ -367,9 +370,14 @@ static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
         goto err_out;
     }
 
-    SET_REE_HDR(&reply->hdr, ree_reply_type, TEE_OK, reply_len);
-
     memcpy(&reply->storage, storage, ipc_len);
+
+    /* Import resp contains only status header */
+    if (ree_reply_type == REE_TEE_OPTEE_IMPORT_STORAGE_RESP) {
+        reply_len = REE_HDR_LEN;
+    }
+
+    SET_REE_HDR(&reply->hdr, ree_reply_type, TEE_OK, reply_len);
 
     *tee_msg = (struct ree_tee_hdr *)reply;
 
@@ -390,7 +398,19 @@ static int ree_tee_optee_export_storage_req(struct ree_tee_hdr *ree_msg,
     ZF_LOGI("REE_TEE_OPTEE_EXPORT_STORAGE_REQ");
 
     return ree_tee_optee_storage(ree_msg, reply_msg, reply_err,
+                                 REE_TEE_OPTEE_EXPORT_STORAGE_REQ,
                                  REE_TEE_OPTEE_EXPORT_STORAGE_RESP);
+}
+
+static int ree_tee_optee_import_storage_req(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err)
+{
+    ZF_LOGI("REE_TEE_OPTEE_IMPORT_STORAGE_REQ");
+
+    return ree_tee_optee_storage(ree_msg, reply_msg, reply_err,
+                                 REE_TEE_OPTEE_IMPORT_STORAGE_REQ,
+                                 REE_TEE_OPTEE_IMPORT_STORAGE_RESP);
 }
 
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,

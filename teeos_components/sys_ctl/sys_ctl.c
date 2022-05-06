@@ -138,6 +138,59 @@ int ipc_optee_secure_nvm_write(uint8_t format, uint8_t snvm_module)
                                 NULL);
 }
 
+static int ipc_secure_nvm_read(uint8_t snvm_module,
+                               uint8_t *user_key,
+                               uint8_t *admin,
+                               uint8_t *data,
+                               uint16_t data_len)
+{
+    return secure_nvm_read(snvm_module,
+                           user_key,
+                           admin,
+                           data,
+                           data_len);
+
+}
+
+int ipc_ree_comm_secure_nvm_read(uint8_t snvm_module,
+                                 uint32_t admin_offset,
+                                 uint32_t data_offset,
+                                 uint32_t data_len)
+{
+    if (admin_offset + sizeof(uint32_t) > ipc_ree_comm_buf_size ||
+        data_offset + data_len > ipc_ree_comm_buf_size) {
+        ZF_LOGE("invalid parameters: %d, %d, %d", admin_offset, data_offset, data_len);
+        return -EINVAL;
+    }
+
+    return ipc_secure_nvm_read(
+                    snvm_module,
+                    NULL,
+                    (uint8_t *)ipc_ree_comm_buf + admin_offset,
+                    (uint8_t *)ipc_ree_comm_buf + data_offset,
+                    data_len);
+}
+
+int ipc_optee_secure_nvm_read(uint8_t snvm_module,
+                              uint32_t admin_offset,
+                              uint32_t data_offset,
+                              uint32_t data_len)
+{
+    if (admin_offset + sizeof(uint32_t) > ipc_optee_buf_size ||
+        data_offset + data_len > ipc_optee_buf_size) {
+        ZF_LOGE("invalid parameters: %d, %d, %d", admin_offset, data_offset, data_len);
+        return -EINVAL;
+    }
+
+    return ipc_secure_nvm_read(
+                    snvm_module,
+                    NULL,
+                    (uint8_t *)ipc_optee_buf + admin_offset,
+                    (uint8_t *)ipc_optee_buf + data_offset,
+                    data_len);
+}
+
+
 void pre_init(void)
 {
     uint32_t *sys_ctl_base = (uint32_t *)sys_ctl_reg;

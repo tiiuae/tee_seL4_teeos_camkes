@@ -31,7 +31,7 @@ int ipc_ree_comm_init(void)
     return err;
 }
 
-int ipc_ree_comm_export_storage(void)
+int ipc_ree_comm_storage_req(int32_t ree_req_type)
 {
     int err = -1;
 
@@ -47,16 +47,32 @@ int ipc_ree_comm_export_storage(void)
     /* 16 byte alignment for crypto algorithm */
     max_size = max_size - (max_size % 16);
 
-    err = teeos_optee_export_storage(storage->pos,
-                                     &storage_len,
-                                     storage->payload,
-                                     max_size,
-                                     &export_len);
+    if (storage->payload_len > max_size) {
+        ZF_LOGE("Invalid payload length: %d", storage->payload_len);
+        return -EINVAL;
+    }
+
+    if (ree_req_type == REE_TEE_OPTEE_EXPORT_STORAGE_REQ) {
+        err = teeos_optee_export_storage(storage->pos,
+                                         &storage_len,
+                                         storage->payload,
+                                         max_size,
+                                         &export_len);
+    }
+
+    if (ree_req_type == REE_TEE_OPTEE_IMPORT_STORAGE_REQ) {
+        err = teeos_optee_import_storage(storage->payload,
+                                         storage->payload_len,
+                                         storage->storage_len);
+    }
+
+    /* unknown ree_req_type fails here */
     if (err) {
-        ZF_LOGE("ERROR teeos_optee_export_storage %d ", err);
+        ZF_LOGE("ERROR teeos_optee_storage %d ", err);
         return err;
     }
 
+    /* Import resp has storage and payload length set to zero */
     storage->storage_len = storage_len;
     storage->payload_len = export_len;
 

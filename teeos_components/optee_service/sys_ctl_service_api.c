@@ -19,13 +19,13 @@
 #include <sys_ctl_service.h>
 #include <teeos_service.h>
 
-int get_serial_number(uint8_t *p_serial_number)
+int get_serial_number(uint8_t *serial_number)
 {
     int err = -1;
 
     uint32_t serial_len = 0;
 
-    if (!p_serial_number) {
+    if (!serial_number) {
         ZF_LOGE("ERROR invalid param");
         return -EINVAL;
     }
@@ -43,24 +43,24 @@ int get_serial_number(uint8_t *p_serial_number)
     }
 
     /* copy serial number from IPC shared memory */
-    memcpy(p_serial_number, ipc_sys_ctl_buf, serial_len);
+    memcpy(serial_number, ipc_sys_ctl_buf, serial_len);
 
     return 0;
 }
 
-int puf_emulation_service (uint8_t *p_challenge, /* 128bit input*/
+int puf_emulation_service (uint8_t *challenge, /* 128bit input*/
                            uint8_t op_type,
-                           uint8_t *p_response   /* 256bit response */)
+                           uint8_t *response   /* 256bit response */)
 {
     int err = -1;
 
-    if (!p_challenge || !p_response) {
+    if (!challenge || !response) {
         ZF_LOGE("ERROR invalid param");
         return -EINVAL;
     }
 
     /* copy challenge to IPC shared memory */
-    memcpy(ipc_sys_ctl_buf, p_challenge, FEK_SIZE);
+    memcpy(ipc_sys_ctl_buf, challenge, FEK_SIZE);
 
     /* copy to buffer before IPC call */
     ipc_sys_ctl_buf_release();
@@ -79,20 +79,20 @@ int puf_emulation_service (uint8_t *p_challenge, /* 128bit input*/
     ipc_sys_ctl_buf_release();
 
     /* copy response from IPC shared memory */
-    memcpy(p_response,
+    memcpy(response,
            ipc_sys_ctl_buf + FEK_SIZE,
            MSS_SYS_PUF_EMULATION_SERVICE_RESP_LEN);
 
     return 0;
 }
 
-int nonce_service(uint8_t *p_nonce)
+int nonce_service(uint8_t *nonce)
 {
     int err = -1;
 
     uint32_t rng_len = 0;
 
-    if (!p_nonce) {
+    if (!nonce) {
         ZF_LOGE("ERROR invalid param");
         return -EINVAL;
     }
@@ -110,7 +110,7 @@ int nonce_service(uint8_t *p_nonce)
     }
 
     /* copy rng from IPC shared memory */
-    memcpy(p_nonce, ipc_sys_ctl_buf, rng_len);
+    memcpy(nonce, ipc_sys_ctl_buf, rng_len);
 
     return 0;
 
@@ -118,24 +118,24 @@ int nonce_service(uint8_t *p_nonce)
 
 int secure_nvm_write(uint8_t format,
                      uint8_t snvm_module,
-                     uint8_t *p_data,
-                     uint8_t *p_user_key)
+                     uint8_t *data,
+                     uint8_t *user_key)
 {
     int err = -1;
 
     if (format != MSS_SYS_SNVM_NON_AUTHEN_TEXT_REQUEST_CMD ||
-        p_user_key) {
+        user_key) {
         ZF_LOGE("ERROR authenticated writes not supported");
         return -EPERM;
     }
 
-    if (!p_data) {
+    if (!data) {
         ZF_LOGE("ERROR invalid param");
         return -EINVAL;
     }
 
     /* copy challenge to IPC shared memory */
-    memcpy(ipc_sys_ctl_buf, p_data, NVM_PAGE_SIZE);
+    memcpy(ipc_sys_ctl_buf, data, NVM_PAGE_SIZE);
 
     /* copy to buffer before IPC call */
     ipc_sys_ctl_buf_release();
@@ -149,27 +149,39 @@ int secure_nvm_write(uint8_t format,
     return 0;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-int read_nvm_parameters(uint8_t *resp)
+int secure_nvm_read(uint8_t snvm_module,
+                    uint8_t *user_key,
+                    uint8_t *admin,
+                    uint8_t *data,
+                    uint16_t data_len)
 {
-    ZF_LOGE("NOT IMPLEMENTED");
-    return -EPERM;
+    int err = -1;
+
+    if (!admin || !data) {
+        ZF_LOGE("ERROR invalid param");
+        return -EINVAL;
+    }
+
+    if (user_key) {
+        ZF_LOGE("ERROR authenticated reads not supported");
+        return -EPERM;
+    }
+
+    err = ipc_sys_ctl_secure_nvm_read(snvm_module,
+                                      0, /* admin in the beginning of IPC buffer */
+                                      sizeof(uint32_t), /* data placed after admin */
+                                      data_len);
+    if (err) {
+        ZF_LOGE("ERROR ipc_sys_ctl_secure_nvm_write: %d", err);
+        return err;
+    }
+
+    /* IPC call before copy from buffer */
+    ipc_sys_ctl_buf_release();
+
+    memcpy(admin, ipc_sys_ctl_buf, sizeof(uint32_t));
+
+    memcpy(data, ipc_sys_ctl_buf + sizeof(uint32_t), data_len);
+
+    return 0;
 }
-
-
-
-int secure_nvm_read
-(
-    uint8_t snvm_module,
-    uint8_t* p_user_key,
-    uint8_t* p_admin,
-    uint8_t* p_data,
-    uint16_t data_len
-)
-{
-    ZF_LOGE("NOT IMPLEMENTED");
-    return -EPERM;
-}
-
-#pragma GCC diagnostic pop
