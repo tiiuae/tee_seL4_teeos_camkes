@@ -85,7 +85,7 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 
     uint32_t serial_len = 0;
 
-    ZF_LOGI("%s", __FUNCTION__);
+    ZF_LOGI("REE_TEE_DEVICEID_REQ");
 
     /* get serial number from sys_ctl */
     err = ipc_sys_ctl_get_serial_number(&serial_len);
@@ -109,6 +109,9 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
     }
 
     SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    /* IPC call must be done before copying from buffer */
+    ipc_sys_ctl_buf_release();
 
     /* copy serial number from IPC buffer*/
     memcpy(reply->response, ipc_sys_ctl_buf, DEVICE_ID_LENGTH);
@@ -137,7 +140,7 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     uint32_t rng_len = 0;
 
-    ZF_LOGI("%s", __FUNCTION__);
+    ZF_LOGI("REE_TEE_RNG_REQ");
 
     /* get random bytes from sys_ctl */
     err = ipc_sys_ctl_get_rng(&rng_len);
@@ -161,6 +164,9 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
     }
 
     SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    /* IPC call must be done before copying from buffer */
+    ipc_sys_ctl_buf_release();
 
     /* copy random numbers from IPC buffer*/
     memcpy(reply->response, ipc_sys_ctl_buf, RNG_SIZE_IN_BYTES);
@@ -187,7 +193,7 @@ static int ree_tee_status_req(struct ree_tee_hdr *ree_msg __attribute__((unused)
     size_t reply_len = REE_HDR_LEN;
     struct ree_tee_hdr *reply = NULL;
 
-    ZF_LOGI("%s", __FUNCTION__);
+    ZF_LOGI("REE_TEE_STATUS_REQ");
 
     reply = calloc(1, reply_len);
     if (!reply) {
@@ -222,7 +228,7 @@ static int ree_tee_config_req(struct ree_tee_hdr *ree_msg,
     size_t reply_len = sizeof(struct ree_tee_config_cmd);
     struct ree_tee_config_cmd *reply = NULL;
 
-    ZF_LOGI("%s", __FUNCTION__);
+    ZF_LOGI("REE_TEE_CONFIG_REQ");
 
     reply = calloc(1, reply_len);
     if (!reply) {
@@ -265,7 +271,7 @@ static int ree_tee_optee_init_req(struct ree_tee_hdr *ree_msg __attribute__((unu
     size_t reply_len = REE_HDR_LEN;
     struct ree_tee_hdr *reply = NULL;
 
-    ZF_LOGI("%s", __FUNCTION__);
+    ZF_LOGI("REE_TEE_OPTEE_INIT_REQ");
 
     err = ipc_optee_init();
     if (err) {
@@ -495,7 +501,6 @@ static seL4_Error tty_irq_handler_ack(seL4_IRQHandler _service __attribute__((un
 
 void tty_irq_handle(void)
 {
-    ZF_LOGI("tty_irq_handle");
 
     rpmsg_ntf_source_emit();
 }

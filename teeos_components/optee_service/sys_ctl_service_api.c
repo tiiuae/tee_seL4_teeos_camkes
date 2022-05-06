@@ -25,6 +25,11 @@ int get_serial_number(uint8_t *p_serial_number)
 
     uint32_t serial_len = 0;
 
+    if (!p_serial_number) {
+        ZF_LOGE("ERROR invalid param");
+        return -EINVAL;
+    }
+
     /* get serial number from sys_ctl */
     err = ipc_sys_ctl_get_serial_number(&serial_len);
     if (err) {
@@ -43,17 +48,22 @@ int get_serial_number(uint8_t *p_serial_number)
     return 0;
 }
 
-int puf_emulation_service
-(
-    uint8_t * p_challenge,  /* 128bit input*/
-    uint8_t op_type,
-    uint8_t* p_response /* 256bit response */
-)
+int puf_emulation_service (uint8_t *p_challenge, /* 128bit input*/
+                           uint8_t op_type,
+                           uint8_t *p_response   /* 256bit response */)
 {
     int err = -1;
 
+    if (!p_challenge || !p_response) {
+        ZF_LOGE("ERROR invalid param");
+        return -EINVAL;
+    }
+
     /* copy challenge to IPC shared memory */
     memcpy(ipc_sys_ctl_buf, p_challenge, FEK_SIZE);
+
+    /* copy to buffer before IPC call */
+    ipc_sys_ctl_buf_release();
 
     err = ipc_sys_ctl_puf_emulation_service(
                 0,       /* challenge in the beginning of buffer*/
@@ -64,6 +74,9 @@ int puf_emulation_service
         ZF_LOGE("ERROR ipc_sys_ctl_puf_emulation_service: %d", err);
         return err;
     }
+
+    /* IPC call before copy from buffer */
+    ipc_sys_ctl_buf_release();
 
     /* copy response from IPC shared memory */
     memcpy(p_response,
