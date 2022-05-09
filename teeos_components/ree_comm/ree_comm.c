@@ -63,6 +63,7 @@ DECL_MSG_FN(ree_tee_config_req);
 DECL_MSG_FN(ree_tee_optee_init_req);
 DECL_MSG_FN(ree_tee_optee_export_storage_req);
 DECL_MSG_FN(ree_tee_optee_import_storage_req);
+DECL_MSG_FN(ree_tee_optee_cmd_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -74,6 +75,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
     {REE_TEE_OPTEE_EXPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_export_storage_req},
     {REE_TEE_OPTEE_IMPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_import_storage_req},
+    {REE_TEE_OPTEE_CMD_REQ, (uintptr_t)ree_tee_optee_cmd_req},
 };
 
 static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
@@ -411,6 +413,77 @@ static int ree_tee_optee_import_storage_req(struct ree_tee_hdr *ree_msg,
     return ree_tee_optee_storage(ree_msg, reply_msg, reply_err,
                                  REE_TEE_OPTEE_IMPORT_STORAGE_REQ,
                                  REE_TEE_OPTEE_IMPORT_STORAGE_RESP);
+}
+
+static int ree_tee_optee_cmd_req(struct ree_tee_hdr *ree_msg,
+                                 struct ree_tee_hdr **tee_msg,
+                                 struct ree_tee_hdr *tee_err_msg)
+{
+    int err = -1;
+
+    struct ree_tee_optee_cmd *req = (struct ree_tee_optee_cmd *)ree_msg;
+    uint32_t req_payload_len = ree_msg->length - REE_HDR_LEN;
+
+    int32_t reply_type = REE_TEE_OPTEE_CMD_RESP;
+    uint32_t reply_payload_len = 0;
+    uint32_t reply_len = 0;
+    struct ree_tee_optee_cmd *reply = NULL;
+
+    ZF_LOGI("REE_TEE_OPTEE_CMD_REQ");
+
+    if (ree_msg->length < sizeof(struct ree_tee_optee_cmd)) {
+        ZF_LOGE("Invalid Message size");
+        err = TEE_INVALID_MSG_SIZE;
+        goto err_out;
+    }
+
+    if (req_payload_len > ipc_optee_buf_size) {
+        ZF_LOGE("Payload overflow: %d / %d", req_payload_len, ipc_optee_buf_size);
+        err = TEE_PAYLOAD_OVERFLOW;
+        goto err_out;
+    }
+
+    memcpy(ipc_optee_buf, &req->cmd, req_payload_len);
+
+    /* ensure data is copied before IPC call */
+    ipc_optee_buf_release();
+
+    err = ipc_optee_request(req_payload_len, &reply_payload_len);
+    if (err) {
+        ZF_LOGE("ERROR ipc_optee_request: %d", err);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    reply_len = REE_HDR_LEN + reply_payload_len;
+
+    if (reply_len > ipc_optee_buf_size) {
+        ZF_LOGE("invalid IPC size: %d / %d", req_payload_len, ipc_optee_buf_size);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    reply = calloc(1, reply_len);
+    if (!reply) {
+        ZF_LOGE("ERROR out of memory");
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    memcpy(&reply->cmd, ipc_optee_buf, reply_payload_len);
+
+    SET_REE_HDR(&reply->hdr, reply_type, TEE_OK, reply_len);
+
+    *tee_msg = (struct ree_tee_hdr *)reply;
+
+    return 0;
+
+err_out:
+    free(reply);
+
+    SET_REE_HDR(tee_err_msg, reply_type, err, REE_HDR_LEN);
+
+    return err;
 }
 
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,

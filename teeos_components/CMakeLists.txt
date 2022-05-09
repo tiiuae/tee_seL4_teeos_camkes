@@ -12,6 +12,10 @@ CAmkESAddCPPInclude("${CMAKE_CURRENT_LIST_DIR}/ipc_interface")
 
 CAmkESAddImportPath("${CMAKE_CURRENT_LIST_DIR}/ipc_interface")
 
+add_compile_definitions(
+    TRACE_ERROR_HIGHLIGHT
+)
+
 add_library(ipc_api_lib INTERFACE)
 target_include_directories(ipc_api_lib INTERFACE "${CMAKE_CURRENT_LIST_DIR}/ipc_interface")
 

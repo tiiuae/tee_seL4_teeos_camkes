@@ -46,5 +46,8 @@ assembly {
 
     configuration {
         ree_comm.dma_pool = 4096;
+
+        /* optee requires a bigger stack */
+        optee_service.ipc_ree_comm_stack_size = 32768;
     }
 }

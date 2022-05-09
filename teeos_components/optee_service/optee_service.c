@@ -78,6 +78,25 @@ int ipc_ree_comm_storage_req(int32_t ree_req_type)
 
     return err;
 }
+
+int ipc_ree_comm_request(uint32_t req_len, uint32_t *reply_len)
+{
+    int err = -1;
+
+    /* reply_len: NONNULL */
+
+    err = sel4_optee_handle_cmd((uint8_t *)ipc_ree_comm_buf,
+                                req_len,
+                                reply_len,
+                                ipc_ree_comm_buf_size);
+
+    if (err) {
+        ZF_LOGE("ERROR sel4_optee_handle_cmd: %d", err);
+    }
+
+    return err;
+}
+
 int run(void)
 {
     int err = -1;

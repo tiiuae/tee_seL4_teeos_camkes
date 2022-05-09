@@ -24,4 +24,5 @@ procedure sys_ctl_ipc_if {
 procedure optee_ipc_if {
     int init(void);
     int storage_req(in int32_t ree_req_type);
+    int request(in uint32_t req_len, out uint32_t reply_len);
 }
