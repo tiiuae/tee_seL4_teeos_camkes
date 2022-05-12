@@ -19,8 +19,11 @@
 #include <sys_ctl_service.h>
 #include <teeos_service.h>
 #include "sys_ctl_defs.h"
+#include "sel4_crashlog.h"
 
 #define UNUSED_VALUE        0x0
+
+static struct crashlog_ctx crashlog = { 0 };
 
 static int ipc_get_serial_number(uint32_t *serial_len, uint8_t *buf)
 {
@@ -201,6 +204,13 @@ void pre_init(void)
 
 int run(void)
 {
+    /* Wait until ree_com has intialized crashlog area before
+     * setting up ZF-callback.
+     */
+    crashlog_ready_wait();
+    sel4_crashlog_setup_cb(&crashlog, crashlog_buf);
+
     ZF_LOGI("started: sys_ctl");
+
     return 0;
 }

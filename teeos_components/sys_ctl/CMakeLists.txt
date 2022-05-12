@@ -28,6 +28,7 @@ target_link_libraries(sys_ctl_lib
         sys_ctl_services
         teeos_service
         ipc_api_lib
+        sel4_crashlog
 )
 
 DeclareCAmkESComponent(Sys_ctl
