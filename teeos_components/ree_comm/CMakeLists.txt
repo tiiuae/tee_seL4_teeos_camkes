@@ -26,6 +26,7 @@ target_link_libraries(ree_comm_lib
         rpmsg_lite
         muslc
         ipc_api_lib
+        sel4_crashlog
 )
 
 DeclareCAmkESComponent(Ree_comm

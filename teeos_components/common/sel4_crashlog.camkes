@@ -1,0 +1,15 @@
+/*
+ * Copyright 2022, Unikie
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+import <std_connector.camkes>;
+
+#include "common_defs.h"
+
+component crashlog_device {
+    hardware;
+
+    dataport Buf(SEL4_CRASHLOG_LEN) crashlog_buf;
+}

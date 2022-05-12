@@ -7,8 +7,10 @@
 
 import <std_connector.camkes>;
 import <ipc_interface.idl4>;
+import <sel4_crashlog.camkes>;
 
 #include <linux/dt-bindings/mailbox/miv-ihc.h>
+#include "common_defs.h"
 #include "ree_comm_defs.h"
 #include "ipc_interface.h"
 
@@ -19,19 +21,14 @@ component tty_device {
     emits Interrupt irq;
 }
 
-component crashlog_device {
-    hardware;
-
-    dataport Buf(SEL4_CRASHLOG_LEN) crashlog_buf;
-}
-
 component Ree_comm {
     control;
 
+    emits crashlog_event                crashlog_ready;
+    dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
+
     dataport Buf(RPMSG_BUFFER_LEN)      rpmsg_buf;
     consumes Interrupt                  tty_irq;
-
-    dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
 
     emits rpmsg_ntf_event               rpmsg_ntf_source;
     consumes rpmsg_ntf_event            rpmsg_ntf_target;

@@ -27,6 +27,7 @@
 #include <rpmsg_sel4.h>
 #include <ree_tee_msg.h>
 #include "ree_comm_defs.h"
+#include "sel4_crashlog.h"
 
 struct camkes_app_ctx {
     ps_io_ops_t ops;
@@ -77,6 +78,8 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_OPTEE_IMPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_import_storage_req},
     {REE_TEE_OPTEE_CMD_REQ, (uintptr_t)ree_tee_optee_cmd_req},
 };
+
+static struct crashlog_ctx crashlog = { 0 };
 
 static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
                                  struct ree_tee_hdr **tee_msg,
@@ -634,6 +637,14 @@ int run()
 {
     int err = -1;
     uint32_t rng_len = 0;
+
+    /* Initialize crashlog header and setup ZF-callback */
+    sel4_crashlog_init_once(crashlog_buf);
+
+    sel4_crashlog_setup_cb(&crashlog, crashlog_buf);
+
+    /* Other components are waiting crashlog_ready-notification */
+    crashlog_ready_emit();
 
     ZF_LOGE("started: ree_comm, build date %s-%s", __DATE__, __TIME__);
 
