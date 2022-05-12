@@ -18,6 +18,7 @@ assembly {
 
         /* Other components should wait crashlog_ready notification from ree_comm */
         connection seL4Notification crashlog_sys_ctl(from ree_comm.crashlog_ready, to sys_ctl.crashlog_ready);
+        connection seL4Notification crashlog_optee(from ree_comm.crashlog_ready, to optee_service.crashlog_ready);
 
         /* IPC: ree_comm - sys_ctl */
         connection seL4RPCCall      ipc_ree_com_sys_ctl(

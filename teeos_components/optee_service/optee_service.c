@@ -20,6 +20,9 @@
 #include <sel4_optee_serializer.h>
 #include <teeos_service.h>
 #include <ree_tee_msg.h>
+#include "sel4_crashlog.h"
+
+static struct crashlog_ctx crashlog = { 0 };
 
 int ipc_ree_comm_init(void)
 {
@@ -100,6 +103,12 @@ int ipc_ree_comm_request(uint32_t req_len, uint32_t *reply_len)
 int run(void)
 {
     int err = -1;
+
+    /* Wait until ree_com has intialized crashlog area before
+     * setting up ZF-callback.
+     */
+    crashlog_ready_wait();
+    sel4_crashlog_setup_cb(&crashlog, crashlog_buf);
 
     ZF_LOGI("started: optee_service");
 

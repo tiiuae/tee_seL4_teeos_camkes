@@ -30,6 +30,7 @@ target_link_libraries(optee_service
         opteecrypt
         teeos_service
         pkcs11_service
+        sel4_crashlog
 )
 
 DeclareCAmkESComponent(Optee_service

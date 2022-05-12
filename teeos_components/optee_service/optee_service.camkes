@@ -7,15 +7,30 @@
 
 import <std_connector.camkes>;
 import <ipc_interface.idl4>;
+import <sel4_crashlog.camkes>;
 
+#include "common_defs.h"
 #include "ipc_interface.h"
 
 component Optee_service {
     control;
+
+    consumes crashlog_event             crashlog_ready;
+    dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
 
     dataport Buf(IPC_SYSCTL_OPTEE_LEN)  ipc_sys_ctl_buf;
     uses sys_ctl_ipc_if                 ipc_sys_ctl;
 
     dataport Buf(IPC_OPTEE_REECOMM_LEN) ipc_ree_comm_buf;
     provides optee_ipc_if               ipc_ree_comm;
+
+    composition {
+        component crashlog_device       crashlog_dev;
+        connection seL4HardwareMMIO     crashlog_mmio(from crashlog_buf, to crashlog_dev.crashlog_buf);
+    }
+
+    configuration {
+        crashlog_dev.crashlog_buf_paddr = SEL4_CRASHLOG_PADDR;
+        crashlog_dev.crashlog_buf_size = SEL4_CRASHLOG_LEN;
+    }
 }
