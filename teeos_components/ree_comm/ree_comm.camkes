@@ -17,6 +17,8 @@ import <sel4_crashlog.camkes>;
 component tty_device {
     hardware;
 
+    dataport Buf(IHC_REG_LEN) ihc_reg_base;
+
     dataport Buf(RPMSG_BUFFER_LEN) rpmsg_buf;
     emits Interrupt irq;
 }
@@ -26,6 +28,8 @@ component Ree_comm {
 
     emits crashlog_event                crashlog_ready;
     dataport Buf(SEL4_CRASHLOG_LEN)     crashlog_buf;
+
+    dataport Buf(IHC_REG_LEN)           ihc_reg_base;
 
     dataport Buf(RPMSG_BUFFER_LEN)      rpmsg_buf;
     consumes Interrupt                  tty_irq;
@@ -42,6 +46,7 @@ component Ree_comm {
     composition {
         component tty_device                tty_dev;
 
+        connection seL4HardwareMMIO         ihc_mmio(from ihc_reg_base, to tty_dev.ihc_reg_base);
         connection seL4HardwareMMIO         tty_mmio(from rpmsg_buf, to tty_dev.rpmsg_buf);
         connection seL4HardwareInterrupt    tty_irq_ihc(from tty_dev.irq, to tty_irq);
 
@@ -52,6 +57,9 @@ component Ree_comm {
     }
 
     configuration {
+        tty_dev.ihc_reg_base_paddr = IHC_REG_BASE_ADDR;
+        tty_dev.ihc_reg_base_size = IHC_REG_LEN;
+
         tty_dev.rpmsg_buf_paddr = RPMSG_BUFFER_PADDR;
         tty_dev.rpmsg_buf_size = RPMSG_BUFFER_LEN;
         tty_dev.irq_irq_number = IHC_HART4_INT;

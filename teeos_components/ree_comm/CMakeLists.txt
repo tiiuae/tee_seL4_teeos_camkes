@@ -27,7 +27,10 @@ target_link_libraries(ree_comm_lib
         muslc
         ipc_api_lib
         sel4_crashlog
+        sel4_ihc
 )
+
+CAmkESAddCPPInclude(${SEL4_TEEOS_INCLUDE}/ihc/hss)
 
 DeclareCAmkESComponent(Ree_comm
     INCLUDES

@@ -28,6 +28,7 @@
 #include <ree_tee_msg.h>
 #include "ree_comm_defs.h"
 #include "sel4_crashlog.h"
+#include "sel4_ihc.h"
 
 struct camkes_app_ctx {
     ps_io_ops_t ops;
@@ -605,17 +606,9 @@ static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
 {
     int err = -1;
 
-    /* IHC memory allocation */
-    cfg->ihc_buf_va = camkes_dma_alloc(sizeof(struct ihc_sbi_msg), 0, 0);
-    if (!cfg->ihc_buf_va) {
-        ZF_LOGF("camkes_dma_alloc error");
-        return -ENOMEM;
-    }
-
-    cfg->ihc_buf_pa = camkes_dma_get_paddr(cfg->ihc_buf_va);
-    if (!cfg->ihc_buf_pa) {
-        ZF_LOGF("camkes_dma_get_paddr error");
-        return -EIO;
+    err = sel4_ihc_init(ihc_reg_base);
+    if (err) {
+        return err;
     }
 
     /* Create RPMSG remote endpoint and wait for master to come online */
@@ -629,6 +622,8 @@ static int setup_rpsmg(struct sel4_rpmsg_config *cfg)
     if (err) {
         return err;
     }
+
+    sel4_ihc_reg_print();
 
     return err;
 }
@@ -661,6 +656,7 @@ int run()
         return err;
     }
 
+    app_ctx.rpmsg_cfg.ihc_reg_base = ihc_reg_base;
     app_ctx.rpmsg_cfg.irq_handler_ack = tty_irq_handler_ack;
     app_ctx.rpmsg_cfg.irq_notify_wait = tty_notify_wait;
     app_ctx.rpmsg_cfg.vring_va = rpmsg_buf;
